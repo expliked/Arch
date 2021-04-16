@@ -26,7 +26,7 @@ import rarfile
 from pyunpack import Archive
 
 import time
-from shutil import copy2 as copy
+from shutil import copy
 
 import os
 import os.path
@@ -51,10 +51,8 @@ path = Path(sys.argv[0])
 
 global parent_folder
 parent_folder = str(path.parent.absolute())
-APPDATA = f"{os.getenv('APPDATA')}\\Arch"
+APPDATA = f"{os.getenv('APPDATA')}\\Arch\\"
 DOWNLOADS = str(Path.home() / "Downloads")
-
-copy("UnRAR.exe", APPDATA)
 
 global selected_songs
 selected_songs = []
@@ -62,18 +60,28 @@ selected_songs = []
 try:
     os.chdir(APPDATA)
 
+except NotADirectoryError:
+    os.mkdir(APPDATA)
+    os.chdir(APPDATA)
+    
 except FileNotFoundError:
     os.mkdir(APPDATA)
     os.chdir(APPDATA)
+
+os.chdir(parent_folder) # go back to program folder
+copy("UnRAR.exe", APPDATA[:-1]) # copy unrar to appdata/arch
+os.chdir(APPDATA) # finally, go back to the appdata/arch folder to start working
 
 global song_path_text
 song_path_text = f"{APPDATA}\\song_path.txt"
 global unrar_path
 unrar_path = f"{parent_folder}\\UnRAR.exe"
 
+global window_width
+window_width = 0
+
 show_songpath_error = False
 if (os.path.exists(song_path_text) == False):
-    current_username = getuser()
     song_path = DOWNLOADS
     show_songpath_error = True
 
@@ -965,10 +973,12 @@ def _update_song_panel(event, clicktype):
         
     if (hasattr(song, "directLinks")):
         try:
-            filename = gdown_download(song.directLinks["album.png"], f"{APPDATA}\\asset\\album.png", quiet = True)
+            song_album_cover["text"] = ""
+            filename = gdown_download(song.directLinks["album.png"], f"{APPDATA}\\assets\\album.png", quiet = True)
             album_filename = f"{APPDATA}\\assets\\album.png"
         except:
             try:
+                song_album_cover["text"] = ""
                 filename = gdown_download(song.directLinks["album.jpg"], f"{APPDATA}\\assets\\album.jpg",quiet = True)
                 album_filename = f"{APPDATA}\\assets\\album.jpg"
 
@@ -1013,17 +1023,23 @@ def _set_song_path():
         file.write(folder_selected)
 
     song_path = folder_selected
-    print(song_path)
+    #print(song_path)
     song_path_var.set(song_path)
 
 def update_album_size(event):
-    root.after(250, _update_album_size)
+    root.after(100, _update_album_size)
     
 def _update_album_size():
     global album_size
     global album_cover
     global song_album_cover
     global img
+    global window_width
+    
+    if (int(root.winfo_width()) == window_width):
+        return
+
+    window_width = int(root.winfo_width())
     
     album_size = (int(root.winfo_width() / 5), int(root.winfo_width() / 5))
 
@@ -1039,13 +1055,13 @@ def _update_album_size():
     song_album_cover.image = img
 
     #song_album_cover["font"] = "
-    song_name["wraplength"] = int(root.winfo_width() / 5)
-    artist_name["wraplength"] = int(root.winfo_width() / 5)
-    song_charter["wraplength"] = int(root.winfo_width() / 5)
-    song_length["wraplength"] = int(root.winfo_width() / 5)
-    song_year["wraplength"] = int(root.winfo_width() / 5)
-    song_link["wraplength"] = int(root.winfo_width() / 5)
-    song_album_cover["wraplength"] = int(root.winfo_width() / 5)
+    song_name["wraplength"]         = int(root.winfo_width() / 5)
+    artist_name["wraplength"]       = int(root.winfo_width() / 5)
+    song_charter["wraplength"]      = int(root.winfo_width() / 5)
+    song_length["wraplength"]       = int(root.winfo_width() / 5)
+    song_year["wraplength"]         = int(root.winfo_width() / 5)
+    song_link["wraplength"]         = int(root.winfo_width() / 5)
+    song_album_cover["wraplength"]  = int(root.winfo_width() / 5)
 
 def viewall(*args):
     song_list.xview(*args)
@@ -1183,6 +1199,10 @@ song_name.pack(anchor = "n", pady = 5)
 artist_name = tkinter.Label(song_panel, text = "", font = default_ui_font_l, wraplength = 350, justify = "center")
 artist_name.pack(anchor = "n", pady = 5)
 
+download_song = tkinter.ttk.Button(song_panel, text = "Download song", takefocus = False, cursor="hand2", command = download_song)
+download_song.pack(pady = 25)
+download_song.pack_forget()
+
 ##song_info_panel = tkinter.Frame(song_panel, bg = "#f5f5f5")
 ##song_info_panel.pack(expand = True, fill = "both", padx = 5, pady = 5, ipadx = 5, ipady = 5)
 
@@ -1198,10 +1218,6 @@ song_year.pack(anchor = "nw", padx = 5, pady = 2)
 song_link = tkinter.Label(song_panel, text = "", wraplength = 350, justify = "left", fg = "#0645AD", bg = "#f5f5f5", font = default_ui_font, cursor="hand2")
 song_link.bind("<Button-1>", lambda n: webbrowser.open(current_song_link, new = 0))
 song_link.pack(anchor = "nw", padx = 5, pady = 2)
-
-download_song = tkinter.ttk.Button(song_panel, text = "Download song", takefocus = False, cursor="hand2", command = download_song)
-download_song.pack(side = "bottom", pady = 25)
-download_song.pack_forget()
 
 
 # Search bar:
@@ -1334,7 +1350,7 @@ settings_frame = tkinter.Frame(notebook, bg = "white")
 song_path_prompt = tkinter.Label(settings_frame, text = "Song Path", bg = "white", font = default_ui_font)
 song_path_prompt.pack(anchor = "w", padx = 10)
 
-song_path_var = tkinter.StringVar(root, value=song_path)
+song_path_var = tkinter.StringVar(root, value = song_path)
 
 song_path_box = tkinter.ttk.Entry(settings_frame, width = 100, font = default_ui_font, textvariable = song_path_var, state = "disabled")
 song_path_box.pack(anchor = "w", padx = 10, pady = 5)
@@ -1347,12 +1363,14 @@ notebook.add(settings_frame, text = "Settings")
 # Console frame:
 console_frame = tkinter.Frame(notebook, bg = "white")
 
-console_output = tkinter.Text(console_frame, fg = "white", bg = "black", state = "disabled", selectbackground = "gray")# font = "Consolas",)#, selectbackground = "black")
-console_output.pack(expand = True, fill = "both")
+console_output = tkinter.Text(console_frame, fg = "white", bg = "black", state = "disabled", selectbackground = "gray", font = "Consolas 12")#, selectbackground = "black")
+console_output.pack(expand = True, fill = "both", side = "left")
 
-console_scrollbar = tkinter.Scrollbar(console_frame)
+# i dont want to deal with the scrollbar right now
+console_scrollbar = tkinter.Scrollbar(console_output)
 console_scrollbar.pack(side = "right", fill = "y")
 console_scrollbar.configure(command = console_output.yview)
+console_output.configure(yscrollcommand = console_scrollbar.set)
 
 notebook.add(console_frame, text = "Developer Console")
 
